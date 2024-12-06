@@ -1,51 +1,108 @@
-import logo from './logo.svg';
-import { API_KEY, API_ENDPOINT, TRENDING, SEARCH } from '../src/api';
-import { useState, useEffect } from 'react';
-
+import { useEffect, useState } from "react";
+import { API_ENDPOINT, API_KEY, SEARCH, TRENDING } from "../src/api";
+import "./App.css";
 
 // https://developers.giphy.com/docs/api/endpoint/
 
 function App() {
   const [trendingData, setTrendingData] = useState([]);
-  const [searchData, setSearchData] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [displayData, setDisplayData] = useState([]);
 
+  // Fetch trending GIFs initially
   useEffect(() => {
     fetch(`${API_ENDPOINT}${TRENDING}?api_key=${API_KEY}&limit=10`)
       .then((response) => response.json())
-      .then((data) => setTrendingData(data.data))
-      .catch((error) => console.log(error));
+      .then((data) => {
+        setTrendingData(data.data);
+        setDisplayData(data.data);
+      })
+      .catch((error) => console.error("Error fetching trending GIFs:", error));
   }, []);
 
+  // Debounce searchTerm
   useEffect(() => {
-    fetch(`${API_ENDPOINT}${SEARCH}?api_key=${API_KEY}&q=${searchTerm}&limit=10`)
-      .then((response) => response.json())
-      .then((data) => setSearchData(data.data))
-      .catch((error) => console.log(error));
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 250);
+
+    return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const renderGifs = gifs => (
-    <>
-      {gifs.map((gif, index) => (
-        <div className='embedded-gif' key={index}>
-          <iframe
-            src={gif.embed_url}
-            key={gif.id}
-            width='480'
-            height='270'
-            frameBorder='0'
-            className='giphy-embed'
-            allowFullScreen=''
-            type='gif'
-          ></iframe>
-        </div>
-      ))}
-    </>
-  );
+  // Fetch search results whenever debouncedSearchTerm changes
+  useEffect(() => {
+    if (debouncedSearchTerm.trim() === "") {
+      setDisplayData(trendingData);
+      return;
+    }
+
+    fetch(
+      `${API_ENDPOINT}${SEARCH}?api_key=${API_KEY}&q=${debouncedSearchTerm}&limit=10`,
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.data.length > 0) {
+          setDisplayData(data.data);
+        } else {
+          setDisplayData(trendingData);
+        }
+      })
+      .catch((error) => console.error("Error fetching search GIFs:", error));
+  }, [debouncedSearchTerm, trendingData]);
+
+  const renderGifs = (gifs) => {
+    const radius = 250;
+    const offset = 0.5;
+
+    return (
+      <>
+        {gifs.map((gif, index) => {
+          const angle = (index * 360) / gifs.length;
+          const x =
+            radius * Math.cos((angle + index * offset) * (Math.PI / 180));
+          const y =
+            radius * Math.sin((angle + index * offset) * (Math.PI / 180));
+
+          return (
+            <div
+              className="gif-circle"
+              key={gif.id}
+              style={{
+                transform: `translate(${x}px, ${y}px)`,
+              }}
+            >
+              <iframe
+                src={gif.embed_url}
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                className="giphy-embed"
+                allowFullScreen
+                title={gif.title}
+              ></iframe>
+            </div>
+          );
+        })}
+      </>
+    );
+  };
 
   return (
     <div className="giphy-app">
-      {renderGifs(trendingData)}
+      <div className="halo-container">
+        <div className="center-container">
+          <h1 className="page-title">Find the Perfect GIF</h1>
+          <input
+            type="text"
+            placeholder="Search from GIPHY..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-bar"
+          />
+        </div>
+        {renderGifs(displayData)}
+      </div>
     </div>
   );
 }
