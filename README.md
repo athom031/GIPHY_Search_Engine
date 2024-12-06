@@ -74,7 +74,10 @@ Generates an optimized production build in the `build` folder.
 
 ### Demo
 
+![Demo](./public/demo.gif)
+
 https://giphy-trending-search.netlify.app/
+
 
 ### Future Improvements
 - Expand GIF display options with pagination.
